@@ -104,7 +104,7 @@ class ASTGCN_Block(nn.Module):
         print('Begin block')
         batch_size, vertices, features, timestamps = x.shape
         tat = self.TAt(x)
-        x_TAt = torch.matmul(x.reshape(batch_size, -1, timesteps), tat).reshape(batch_size, vertices, features, timesteps)
+        x_TAt = torch.matmul(x.reshape(batch_size, -1, timesteps), tat).reshape(batch_size, vertices, features, timestamps)
         sat = self.SAt(x_TAt)
         print('Finished attention')
         gcn = self.SAt_conv(x, sat)

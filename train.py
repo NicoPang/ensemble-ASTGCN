@@ -109,13 +109,13 @@ if __name__ == '__main__':
     
     packaged_data = np.load(savefile)
     
-    X_h = torch.from_numpy(packaged_data['hourly'])
-    X_d = torch.from_numpy(packaged_data['daily'])
-    X_w = torch.from_numpy(packaged_data['weekly'])
-    W = torch.from_numpy(packaged_data['weather'])
-    y = torch.from_numpy(packaged_data['pred'])
-
-    A = torch.from_numpy(packaged_data['adj_mx'])
+#    X_h = torch.from_numpy(packaged_data['hourly'])
+#    X_d = torch.from_numpy(packaged_data['daily'])
+#    X_w = torch.from_numpy(packaged_data['weekly'])
+#    W = torch.from_numpy(packaged_data['weather'])
+#    y = torch.from_numpy(packaged_data['pred'])
+#
+#    A = torch.from_numpy(packaged_data['adj_mx'])
     
     X_h = np.copy(packaged_data['hourly'])
     X_d = np.copy(packaged_data['daily'])
@@ -212,8 +212,4 @@ if __name__ == '__main__':
     #===================
     # Training + Testing
     #===================
-    gc.collect()
     train_test(model, training_loader, testing_loader, epochs, learning_rate)
-
-    print('Sleeping...')
-    time.sleep(10)
