@@ -3,30 +3,79 @@ import gc
 import numpy as np
 import time
 
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import train_test_split
 
 import torch
+import torch.nn as nn
+from torch.optim import Adam
 from torch.utils.data import TensorDataset, DataLoader
 
 import data.generation as gen
 import model.ensembleASTGCN as models
 
-def train_one_epoch(model, training_loader):
-    return 0
+def train_one_epoch(model, training_loader, loss_function, optimizer):
+    mae = 0
+    rmse = 0
 
-def train_test(model, training_loader, testing_loader, num_epochs):
+    for i, data in enumerate(training_loader):
+        print(f'Training batch {i + 1}', end  = '\r')
+        train_xh, train_xd, train_xw, train_w, train_y = data
+        optimizer.zero_grad()
+        pred_y = model(train_xh, train_xd, train_xw, train_w)
+        loss = torch.sqrt(loss_function(pred_y, train_y))
+        loss.backward()
+        optimizer.step()
+                    
+        mae += mean_absolute_error(train_y, pred_y)
+        rmse += mean_squared_error(train_y, pred_y, squared = True)
+        
+    mae = mae / (i + 1)
+    rmse = rmse / (i + 1)
+    print(f'TRAINING: MAE = {mae} RMSE = {rmse}')
+    return
+
+def train_test(model, training_loader, testing_loader, num_epochs, lr):
+    loss_function = nn.MSELoss()
+    optimizer = Adam(model.parameters(), lr =  0.01)
     
     for epoch in range(num_epochs):
         print(f'BEGIN: Epoch {epoch + 1}')
         
-#        model.train(True)
+        for p in model.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+            else:
+                nn.init.uniform_(p)
         
-        loss = train_one_epoch(model, training_loader)
+        print('Done initializing parameters.')
         
-#        model.train(False)
+        model.train(True)
+        
+        avg_loss = train_one_epoch(model, training_loader, loss_function, optimizer)
+        
+        model.train(False)
+        
+        t_loss = 0
+        
+        # Testing
+        mae = 0
+        rmse = 0
+        for i, data in enumerate(testing_loader):
+            print(f'Testing batch {i + 1}', end  = '\r')
+            test_xh, test_xd, test_xw, test_w, test_y = data
+            pred_y = model(test_xh, test_xd, test_xw, test_w)
+            mae += mean_absolute_error(test_y, pred_y)
+            rmse += mean_squared_error(test_y, pred_y, squared = True)
+            print(test_xh.shape)
+            
+        mae = mae / (i + 1)
+        rmse = rmse / (i + 1)
+        print(f'EPOCH {epoch + 1}: MAE = {mae} RMSE = {rmse}')
         
 
 if __name__ == '__main__':
+    torch.set_default_tensor_type(torch.DoubleTensor)
     #===============
     # Config parsing
     #===============
@@ -43,6 +92,12 @@ if __name__ == '__main__':
     K = int(config['K'])
     
     epochs = int(config['epochs'])
+    learning_rate = float(config['learning_rate'])
+    
+    blocks = int(config['blocks'])
+    
+    gcn_filters = int(config['gcn_filters'])
+    t_filters = int(config['t_filters'])
     
     #===============
     # Data retreival
@@ -54,13 +109,13 @@ if __name__ == '__main__':
     
     packaged_data = np.load(savefile)
     
-#    X_h = torch.from_numpy(packaged_data['hourly'])
-#    X_d = torch.from_numpy(packaged_data['daily'])
-#    X_w = torch.from_numpy(packaged_data['weekly'])
-#    W = torch.from_numpy(packaged_data['weather'])
-#    y = torch.from_numpy(packaged_data['pred'])
-#
-#    A = torch.from_numpy(packaged_data['adj_mx'])
+    X_h = torch.from_numpy(packaged_data['hourly'])
+    X_d = torch.from_numpy(packaged_data['daily'])
+    X_w = torch.from_numpy(packaged_data['weekly'])
+    W = torch.from_numpy(packaged_data['weather'])
+    y = torch.from_numpy(packaged_data['pred'])
+
+    A = torch.from_numpy(packaged_data['adj_mx'])
     
     X_h = np.copy(packaged_data['hourly'])
     X_d = np.copy(packaged_data['daily'])
@@ -69,6 +124,10 @@ if __name__ == '__main__':
     y = np.copy(packaged_data['pred'])
 
     A = np.copy(packaged_data['adj_mx'])
+    
+    traffic_features = X_h.shape[2]
+    weather_features = W.shape[1]
+    vertices = y.shape[1]
 
     packaged_data = None
 
@@ -78,6 +137,9 @@ if __name__ == '__main__':
     print(f'Weather dims: {W.shape}')
     print(f'Prediction dims: {y.shape}')
     print(f'Adjacency matrix dims: {A.shape}')
+    print(f'Number of traffic features: {traffic_features}')
+    print(f'Number of weather features: {weather_features}')
+    print(f'Number of vertices: {vertices}')
     print('')
     
     #===============
@@ -111,8 +173,8 @@ if __name__ == '__main__':
     training_dataset = TensorDataset(train_xh, train_xd, train_xw, train_w, train_y)
     testing_dataset = TensorDataset(test_xh, test_xd, test_xw, test_w, test_y)
     
-    training_loader = DataLoader(training_dataset, batch_size = 64, shuffle = True)
-    testing_loader = DataLoader(testing_dataset, batch_size = 32)
+    training_loader = DataLoader(training_dataset, batch_size = 12, shuffle = True)
+    testing_loader = DataLoader(testing_dataset, batch_size = 12)
 
     print(f'Training X_h shape: {train_xh.shape}')
     print(f'Testing X_h shape: {test_xh.shape}')
@@ -137,21 +199,21 @@ if __name__ == '__main__':
     train_y = None
     test_y = None
     
-    print(f'Training dataset size: {len(training_dataset)}')
-    print(f'Testing dataset size: {len(testing_dataset)}')
+    print(f'Training loader size: {len(training_loader)}')
+    print(f'Testing loader size: {len(testing_loader)}')
     
     #===============
     # Model Creation
     #===============
     
     # TODO make model
-    model = 1
+    model = models.get_model(blocks, traffic_features, K, gcn_filters, t_filters, pred_window_size, num_hours, num_days, num_weeks, vertices, A)
     
     #===================
     # Training + Testing
     #===================
-    
-    train_test(model, training_loader, testing_loader, epochs)
+    gc.collect()
+    train_test(model, training_loader, testing_loader, epochs, learning_rate)
 
     print('Sleeping...')
     time.sleep(10)
