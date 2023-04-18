@@ -12,10 +12,12 @@ After doing this, upload the three .csv/.npz files in data to the data folder. D
 You're going to have to uncomment the data building codeblock, run it, and then comment it out again. Proceed to train the algorithm.
 
 BASE MODEL ASTGCN - 40mins
-- I would avoid doing more than 1 epoch.
-- Use these if you don't want to run it again:
 - training mae/rmse -> 0.02540839173267653/0.0016502609008629979
 - testing mae/rmse -> 0.025322685611468776/0.0016213510319142155
+
+WEATHER MODEL 1 NN layer - 30 mins
+- training mae/rmse -> 0.024359578843929884/0.0016280714464862543
+- testing mae/rmse -> 0.022152570152172337/0.001363484591840663
 
 Making new models/testing new ones:
 - Put them in the .ipynb
